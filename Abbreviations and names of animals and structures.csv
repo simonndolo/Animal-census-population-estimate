@@ -1,0 +1,61 @@
+SPECIES,SPECIES NAME
+BB,Bush Buck
+BF,Buffalo
+BG,Elephant Bones Grey
+BP,Bush Pig
+BR,Elephant Bones Rotten
+BW,Elephant Bones NR
+CF,Cattle Free Ranging
+CH,Cheatah
+CL,Cattle Feedlot
+CM,Camel
+CP,Cattle Paddock
+CT,Cattle Tethered
+CX,Cattle All
+DD,Dikdik
+DK,Duiker
+DN,Donkey
+ED,Eland
+EL,Elephant
+FR,Elephant Fresh Carcass
+GF,Giraffe
+GG,Gazelle Grants
+GH,Giant Forest Hog
+GK,Greater Kudu
+GN,Gerenuk
+GR,Giraffe Reticulated
+HD,Hunting Dog
+HH,Hunters Hartebeest
+HP,Hippo
+HY,Hyena
+IM,Impala
+KG,Kongoni
+KP,Klipspringer
+LK,Lesser Kudu
+LN,Lion
+LP,Leopard
+OR,Oribi
+OS,Ostrich
+OX,Oryx
+RB,Reedbuck
+RH,Rhino
+SB,Sable Antelope
+SH,Sheep & Goat
+SP,Small Predators
+ST,Steinbok
+TG,Gazelle Thomsons
+TP,Topi
+WB,Waterbuck
+WH,Warthog
+WL,Wildebeest
+ZB,Zebra Burchell
+ZG,Zebra Grevy
+structures,
+MH,Mabati House
+MS,Mabati shed
+MP,Manyatta Permanent
+MT,Manyatta Temporary
+TH,Thatched House
+TS,Thatched Shed
+SR,Storage
+FD,School/Town/Cattle Dip
