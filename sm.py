@@ -35,6 +35,9 @@ class Analyze:
     def __init__(self, parent=None):
 
         super().__init__()
+        self.result_df = None
+        self.df = None
+        self.grouped_df = None
         self.parent = parent
         self.folder_name = ""
         self.folder_path = ""
@@ -51,6 +54,7 @@ class Analyze:
         self.R = 0
         self.s_f = 0
         self.Ez = 0
+        self.Ezy = 0
         
 
     def set_county_key(self, county_key):
@@ -132,44 +136,73 @@ class Analyze:
         unit_area_list = []
         total_sample_area = 0  # initialize the sumto zero
         error_message = ""  # Initialize error_message with an empty string
+        sum_of_radar_values = 0.0
+        count_of_values = 0
+        non_numeric_indices = {"radar": [], "length": []}
+
         for i in range(len(unit_radar)):
             try:
                 a = unit_radar[i]
                 f = float(a)
-                # ratio = Target strip width(m)/Target flying height(m)=1.1562
-                unit1 = unit[i]  # Get the 'unit' value from the input data
-                if pd.isnull(unit_length[i]) == False:
-                    try:
-                        length = np.divide(float(unit_length[i]), 1000)
-                        actual_strip_width = (w * ((f * 10) / 400)) / 1000
-                        unit_area = actual_strip_width * length
-
-                        total_sample_area += unit_area
-                        unit_area_list.append(
-                            {"Unit": unit1, "Unit Area(km^2)": unit_area}
-                        )
-                    except ValueError:
-                        error_massage = (
-                            "Error: Non-numeric value found in unit_length array."
-                        )
-                       # QMessageBox.warning(self.parent, "Warning", error_message1)
+                # Add the value to the sum (assuming it's a valid numeric value)
+                sum_of_radar_values += float(a)
+                count_of_values += 1
             except ValueError:
+                # Handle the case where a string cannot be converted to float
+                non_numeric_indices["radar"].append(i)  # Store the index where non-numeric value is found
+        average = sum_of_radar_values/count_of_values
+        #Note from the average you can divide the baseline with average to get the N (total number of units in the population)
+        # ratio = Target strip width(m)/Target flying height(m)=1.1562
+        for j in range(len(unit_radar)):
+            unit1 = unit[j]  # Get the 'unit' value from the input data
+            if pd.isnull(unit_length[j]) == False:
+                try:
+                    length = np.divide(float(unit_length[j]), 1000)
+                    actual_strip_width = (w * ((f * 10) / h)) / 1000
+                    unit_area = actual_strip_width * length
+
+                    total_sample_area += unit_area
+                    unit_area_list.append(
+                        {"Unit": unit1, "Unit Area(km^2)": unit_area}
+                    )
+                except ValueError:
+                    error_massage = (
+                        "Error: Non-numeric value found in unit_length array."
+                    )
+                    non_numeric_indices["length"].append(j)  # Store the index where non-numeric value is found
+        # Display a QMessageBox with all non-numeric indices at once
+        if non_numeric_indices["radar"] or non_numeric_indices["length"]:
+            message = "Non-numeric values found at indices:\n"
+            message += f"Radar: {non_numeric_indices['radar']}\n"
+            message += f"Length: {non_numeric_indices['length']}\n"
+            QMessageBox.warning(
+                self.parent,
+                "Non-Numeric Values",
+                message + "Ignoring."
+            )
+            '''      
+                    # QMessageBox.warning(self.parent, "Warning", error_message1)
+        
+                try:
                 error_message = f"Error: Non-numeric value found in radar column in FSO data array at index {i}. Ignoring."
+            except ValueError as e:
+                #error_message = f"Error: Non-numeric value found in radar column in FSO data array at index {i}. Ignoring."
                 #QMessageBox.warning(self.parent, "Warning", error_message)
                 continue
-            # Display all error messages at once
+                '''
+        # Display all error messages at once
         if error_message:
             QMessageBox.warning(
             self.parent,"Warning"," ".join(error_message))
         
         self.Ez = total_sample_area
         # Create a pandas DataFrame from the list of dictionaries
-        df = pd.DataFrame(unit_area_list)
+        self.df= pd.DataFrame(unit_area_list)
         # Add a new column that squares each unit area (ha)
-        df["Unit Area Squared(km^2)"] = df["Unit Area(km^2)"].apply(lambda x: x**2)
+        self.df["Unit Area Squared(km^2)"] = self.df["Unit Area(km^2)"].apply(lambda x: x**2)
 
         # Calculate the sum of squared unit area (ha^2)
-        sum_squared_unit_area = df["Unit Area Squared(km^2)"].sum()
+        sum_squared_unit_area = self.df["Unit Area Squared(km^2)"].sum()
         self.Ez2 = sum_squared_unit_area
         self.Ez_2 = self.Ez * self.Ez
 
@@ -178,7 +211,8 @@ class Analyze:
         # print(Ez2)
         # Save the DataFrame to an excel file called 'unit_areas.xlsx'
         file_path = Path(self.folder_path1, "unit_areas_km_squared.xlsx")
-        df.to_excel(file_path, index=False)
+        self.df.to_excel(file_path, index=False)
+        # Print the grouped DataFrame
 
         # df.to_excel(self.folder_path1 + "/unit_areas_ha.xlsx", index=False)
 
@@ -210,6 +244,8 @@ class Analyze:
         # Iterate over each column in the dataframe except the first 4 columns)
         results = []
         zero_count = []
+
+        #sampling Fraction
         self.s_f = np.round(float(self.Ez / z) * 100, 3)
 
     def zerro_count(self):
@@ -301,8 +337,40 @@ class Analyze:
         df = pd.read_excel(
             self.f_name, sheet_name="RSO" + self.census_id, dtype={"PST": str}
         )
-        for column in df.columns[4:]:
+        for column in df.columns[5:]:
             df[column] = pd.to_numeric(df[column], errors="coerce")
+
+            #Group by "UNIT" and calculate the sum for each group
+            self.grouped_df = df.groupby("UNIT")[column].sum().reset_index()
+            #calculating Ez.y
+            # Find units in df_area that are not in df_species
+            unmerged_units_left = self.df[~self.df['Unit'].isin(self.grouped_df['UNIT'])]
+
+            # Find units in df_species that are not in df_area
+            unmerged_units_right = self.grouped_df[~self.grouped_df['UNIT'].isin(self.df['Unit'])]
+            # Save unmerged units DataFrames to CSV
+            unmerged_units_left.to_csv(Path(self.folder_path,'Units in FSO and not in RSO_data.csv'), index=None)
+            unmerged_units_right.to_csv(Path(self.folder_path,'units in RSO and not in FSO_data.csv'), index=None)
+            # Merge the two DataFrames on 'UNIT'
+            merged_df_ = pd.merge(self.df, self.grouped_df, left_on='Unit', right_on='UNIT', how='inner')
+            # Drop the redundant 'UNIT_NO' column if needed
+            merged_df_ = merged_df_.drop('UNIT', axis=1)
+            for species in self.grouped_df.columns[1:]:
+                merged_df_[f'{species}_product'] = merged_df_['Unit Area(km^2)'] * merged_df_[species]
+
+            # Extract only the relevant columns for the final result
+            self.result_df = merged_df_[self.grouped_df.columns[1:]].sum().reset_index()
+            # Rename the columns if needed
+            self.result_df.columns = ['Species', 'Total_Area_Species_Product']
+
+            # Access the 'Total_Area_Species_Product' value
+            Ezy_value = self.result_df['Total_Area_Species_Product'].iloc[0]
+
+            # Assign the value to the 'Ezy' attribute in your class
+            self.Ezy = Ezy_value
+
+            
+           
             #filtered_df = df[df["UNIT"].duplicated(keep=False)]
             filtered_df = df.groupby("UNIT").filter(lambda x: len(x) == 2)
             column_sums = filtered_df[column].sum()
@@ -419,6 +487,7 @@ class Analyze:
         Ezy_i = Ey * self.Ez
         Ezy = np.sum(Ezy_i)
         self.n = float(self.total_transects)
+        #the variance between animals counted in all the units
         Sy2 = np.round(
             (1 / (self.sampled_transects - 1))
             * ((Ey_sqrd) - ((Eyallsqrd) / self.sampled_transects)),
@@ -426,16 +495,17 @@ class Analyze:
         )
         # print(Sy2)
         # Sy2 = 94878411.0203252
-        # count based covariance
+
+        #the variance between the area of all the sample units
         Sz2 = np.round(
             (1 / self.sampled_transects - 1)
             * (self.Ez2 - (self.Ez_2 / self.sampled_transects)),
             3,
         )
-        # area count covariance
+        # the covariance between the animals counted ant the area of each unit
         Szy = np.round(
             (1 / (self.sampled_transects - 1))
-            * ((Ezy) - ((self.Ez * Ey_sum) / self.sampled_transects)),
+            * ((self.Ezy) - ((self.Ez * Ey_sum) / self.sampled_transects)),
             3,
         )
         # pop estimate
@@ -450,11 +520,11 @@ class Analyze:
                     )
                     / self.sampled_transects
                 )
-                * Sy2
+                * (Sy2-2 * self.R * Szy + (self.R*self.R) * Sz2)
             ),
             0,
         )
-        # -(2*R*Szy)) + ((R*R) * Sz2),2)
+        #- 2*self.R*Szy+(self.R*self.R)*Sz2)
         # Compute the standard error of each column
         std_err = np.round(np.sqrt(column_variances), 3)
         # Compute the sum of each column
@@ -529,11 +599,13 @@ class UI(QMainWindow):
     cancel_clicked = pyqtSignal()
     
 
-    def __init__(self):
+    def __init__(self, parent=None):
         super(UI, self).__init__()
+        super().__init__(parent)
+        self.program_executed = False # Initialize the flag in the constructor
         # load the ui file
         script_path = Path(__file__).resolve()
-        ui_path = Path(script_path.parent, "view.ui")
+        ui_path = Path(script_path.parent, "view2.ui")
         uic.loadUi(ui_path, self)
         self.analyzer = Analyze()  # Create an instance of the analyze class
         
@@ -629,6 +701,10 @@ class UI(QMainWindow):
         self.lineEdit_8.clear()
     
     def graph(self):
+        if not self.program_executed:
+            # Show an error message if the program hasn't been run
+            QMessageBox.warning(self, "Warning", "Please run the program first!")
+            return
         analyzer = Analyze(self)
         analyzer.folder_path1 = self.folder_path1
         analyzer.folder_path = self.folder_path
@@ -676,6 +752,17 @@ class UI(QMainWindow):
         plt.show()
        
     def runprogram(self):
+         # Check if all line edits are filled
+        if (
+            self.lineEdit_2.text() == ""
+            or self.lineEdit_3.text() == ""
+            or self.lineEdit_4.text() == ""
+            or self.lineEdit_5.text() == ""
+            or self.lineEdit_6.text() == ""
+        ):
+            error_message = "Please fill all the required fields."
+            QMessageBox.critical(self, "Error", error_message)
+            return
         # Create a progress bar
         progress_bar = QProgressBar(self)
         progress_bar.setGeometry(100, 84, 400, 25)
@@ -717,7 +804,8 @@ class UI(QMainWindow):
             # Update the progress bar again
             progress_bar.setValue(100)  # Update to indicate completion
 
-            # Close the progress bar after the program execution is complete
+           # Program executed successfully
+            self.program_executed = True  # Set the flag to True
             
 
             # Create the pop-up message box

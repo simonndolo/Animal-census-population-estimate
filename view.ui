@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>561</width>
+    <width>570</width>
     <height>600</height>
    </rect>
   </property>
@@ -75,7 +75,6 @@
       <weight>9</weight>
       <italic>false</italic>
       <bold>false</bold>
-      <kerning>false</kerning>
      </font>
     </property>
     <property name="autoFillBackground">
@@ -151,9 +150,9 @@ background-color: rgb(186, 189, 182);</string>
     <property name="geometry">
      <rect>
       <x>40</x>
-      <y>470</y>
+      <y>460</y>
       <width>141</width>
-      <height>21</height>
+      <height>31</height>
      </rect>
     </property>
     <property name="font">
@@ -236,9 +235,9 @@ background-color: rgb(186, 189, 182);</string>
     <property name="geometry">
      <rect>
       <x>440</x>
-      <y>470</y>
+      <y>460</y>
       <width>71</width>
-      <height>21</height>
+      <height>31</height>
      </rect>
     </property>
     <property name="font">
